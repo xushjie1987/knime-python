@@ -1384,7 +1384,14 @@ public class PythonKernel implements AutoCloseable {
             // closed.
             PythonUtils.Misc.invokeSafely(LOGGER::debug, c -> {
                 try {
-                    c.cleanUp().get(500, TimeUnit.MILLISECONDS);
+                    RunnableFuture<Void> cleanUpTask = c.cleanUp();
+                    cleanUpTask.run();
+                    // Sleep independent of any cleanup. This is needed to give the Python kernel some time to finish
+                    // sending answers to previous requests, write into streams, etc. before the messaging system is
+                    // closed.
+                    Thread.sleep(500);
+                    // Sleep some more if needed to give the cleanup operation some time.
+                    cleanUpTask.get(4000, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException ex) {
